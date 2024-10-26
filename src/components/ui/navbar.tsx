@@ -1,6 +1,6 @@
 "use client"
-import React from 'react';
 import { useState } from 'react';
+import React from 'react';
 
 export default function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -22,17 +22,19 @@ export default function Navbar() {
                     ☰ {/* Hamburger icon */}
                 </button>
                 
-                {/* Dropdown Menu (full-width on mobile screens) */}
-                {isMenuOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white shadow-lg w-screen">
-                        <div className="flex flex-col items-center text-center">
-                            <a href="#home" className="w-full py-3 text-center hover:bg-gray-200">Home</a>
-                            <a href="#about" className="w-full py-3 text-center hover:bg-gray-200">About Us</a>
-                            <a href="#services" className="w-full py-3 text-center hover:bg-gray-200">Services</a>
-                            <a href="#contact" className="w-full py-3 text-center hover:bg-gray-200">Contact</a>
-                        </div>
+                {/* Dropdown Menu with Transition */}
+                <div
+                    className={`absolute top-full left-0 right-0 mt-2 bg-white shadow-lg w-screen transform transition-all duration-300 ease-in-out ${
+                        isMenuOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
+                    }`}
+                >
+                    <div className="flex flex-col items-center text-center">
+                        <a href="#home" className="w-full py-3 text-center hover:bg-gray-200">Home</a>
+                        <a href="#about" className="w-full py-3 text-center hover:bg-gray-200">About Us</a>
+                        <a href="#services" className="w-full py-3 text-center hover:bg-gray-200">Services</a>
+                        <a href="#contact" className="w-full py-3 text-center hover:bg-gray-200">Contact</a>
                     </div>
-                )}
+                </div>
             </div>
 
             {/* Navigation Links (visible on larger screens only) */}
@@ -45,7 +47,7 @@ export default function Navbar() {
 
             {/* Login Button */}
             <div className="hidden lg:block">
-                <button className="bg-red-200 px-6 py-2 rounded-3xl">
+                <button className="bg-pink-400 text-white px-6 py-2 rounded-3xl">
                     Login
                 </button>
             </div>
