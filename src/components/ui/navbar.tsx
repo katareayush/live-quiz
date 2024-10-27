@@ -1,9 +1,11 @@
 "use client"
-import { useState } from 'react';
+import { useState  } from 'react';
 import React from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const router = useRouter();
 
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen);
@@ -47,14 +49,14 @@ export default function Navbar() {
 
             {/* Login Button */}
             <div className="hidden lg:block">
-                <button className="bg-pink-400 text-white px-6 py-2 rounded-3xl">
+                <button onClick={() => router.push('/login')} className="bg-pink-400 text-white px-6 py-2 rounded-3xl">
                     Login
                 </button>
             </div>
 
             {/* Login Button for Small Screens */}
             <div className="lg:hidden">
-                <button className="bg-red-200 px-4 py-2 rounded-full">
+                <button onClick={() => router.push('/login')} className="bg-red-200 px-4 py-2 rounded-full">
                     Login
                 </button>
             </div>
