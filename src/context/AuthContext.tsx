@@ -1,7 +1,18 @@
 "use client"
 import React, { createContext, useEffect, useState, ReactNode } from 'react';
-import { auth } from '../firebaseConfig';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword , updateProfile} from 'firebase/auth';
+import { auth } from '@/firebaseConfig';
+import { 
+  onAuthStateChanged, 
+  signInWithEmailAndPassword, 
+  GithubAuthProvider, 
+  signOut, 
+  User, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  createUserWithEmailAndPassword, 
+  updateProfile, 
+  getAuth
+} from 'firebase/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -10,7 +21,9 @@ interface AuthContextType {
   loginWithEmail: (email: string, password: string) => Promise<void>;
   signupWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  loginWithGithub: () => Promise<void>; // Add this
   signupWithGoogle: () => Promise<void>;
+  signupWithGithub: () => Promise<void>; // Add this
   logout: () => Promise<void>;
 }
 
@@ -20,6 +33,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Create providers outside of the functions to avoid recreating them
+  const githubProvider = new GithubAuthProvider();
+  const googleProvider = new GoogleAuthProvider();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -31,59 +48,99 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const loginWithEmail = async (email: string, password: string) => {
-    setError(null); // Reset error
+    setError(null);
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err: any) {
-      setError(err.message); // Capture the error message
+      setError(err.message);
+      throw err; // Propagate error to component
     }
   };
 
   const signupWithEmail = async (email: string, password: string, displayName: string) => {
-    setError(null); // Reset error
+    setError(null);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-  
-      if (user) {
-        // Update profile with displayName
-        await updateProfile(user, { displayName });
-        setUser(user);
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, { displayName });
+        setUser(userCredential.user);
       }
     } catch (err: any) {
-      setError(err.message); // Capture the error message
+      setError(err.message);
+      throw err;
     }
   };
 
   const loginWithGoogle = async () => {
-    setError(null); // Reset error
-    const provider = new GoogleAuthProvider();
+    setError(null);
     try {
-      await signInWithPopup(auth, provider);
+      await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
-      setError(err.message); // Capture the error message
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  const loginWithGithub = async () => {
+    setError(null);
+    try {
+      await signInWithPopup(auth, githubProvider);
+    } catch (err: any) {
+      // Handle specific GitHub errors
+      if (err.code === 'auth/account-exists-with-different-credential') {
+        setError('An account already exists with the same email address but different sign-in credentials. Try signing in using a different method.');
+      } else {
+        setError(err.message);
+      }
+      throw err;
+    }
+  };
+
+  const signupWithGithub = async () => {
+    setError(null);
+    try {
+      const result = await signInWithPopup(auth, githubProvider);
+      setUser(result.user);
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
     }
   };
 
   const signupWithGoogle = async () => {
-    setError(null); // Reset error
-    const provider = new GoogleAuthProvider();
+    setError(null);
     try {
-      const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
-      setUser(user);
+      const result = await signInWithPopup(auth, googleProvider);
+      setUser(result.user);
     } catch (err: any) {
-      setError(err.message); // Capture the error message
+      setError(err.message);
+      throw err;
     }
   };
 
   const logout = async () => {
-    await signOut(auth);
-    setUser(null);
+    try {
+      await signOut(auth);
+      setUser(null);
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, loginWithEmail, signupWithEmail, loginWithGoogle, signupWithGoogle, logout }}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      error,
+      loginWithEmail,
+      signupWithEmail,
+      loginWithGoogle,
+      loginWithGithub, // Add this
+      signupWithGoogle,
+      signupWithGithub, // Add this
+      logout
+    }}>
       {!loading && children}
     </AuthContext.Provider>
   );

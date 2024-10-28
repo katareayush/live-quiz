@@ -1,7 +1,7 @@
 "use client"
 import React, { useState, FormEvent, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Github, Chrome } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Github, Chrome, GithubIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,7 +24,7 @@ const staggerContainer = {
 
 const SignupPage = () => {
   const router = useRouter();
-  const { user, signupWithEmail, signupWithGoogle, error: authError, loading: authLoading } = useAuth();
+  const { user, signupWithEmail,signupWithGithub ,signupWithGoogle, error: authError, loading: authLoading } = useAuth();
   
   const [formData, setFormData] = useState({
     email: '',
@@ -75,6 +75,18 @@ const SignupPage = () => {
     setLoading(true);
     try {
       await signupWithGoogle();
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Google signup failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGithubSignup = async () => {
+    setLoading(true);
+    try {
+      await signupWithGithub();
       router.push('/dashboard');
     } catch (error) {
       console.error('Google signup failed:', error);
@@ -220,6 +232,16 @@ const SignupPage = () => {
           >
             <Chrome className="mr-2 h-5 w-5" />
             Sign Up with Google
+          </motion.button>
+          
+          <motion.button
+            variants={fadeIn}
+            className="flex items-center justify-center w-full mt-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-full hover:bg-gray-100 transition duration-150"
+            onClick={handleGithubSignup}
+            disabled={loading || authLoading}
+          >
+            <GithubIcon className="mr-2 h-5 w-5" />
+            Sign Up with GitHub
           </motion.button>
 
           <div className="mt-6 text-center">

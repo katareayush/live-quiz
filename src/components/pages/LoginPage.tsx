@@ -1,7 +1,7 @@
 "use client"
 import React, { useState, FormEvent } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Github, Chrome } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Github, Chrome, Apple } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,7 +24,7 @@ const staggerContainer = {
 
 const LoginPage = () => {
   const router = useRouter();
-  const { user, loginWithEmail, loginWithGoogle, error: authError, loading: authLoading } = useAuth();
+  const { user, loginWithEmail, loginWithGithub, loginWithGoogle, error: authError, loading: authLoading } = useAuth();
   
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -59,6 +59,18 @@ const LoginPage = () => {
       router.push('/dashboard');
     } catch (error) {
       console.error('Google login failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGithubLogin = async () => {
+    setLoading(true);
+    try {
+      await loginWithGithub();
+      router.push('/dashboard');
+    } catch (error: any) {
+      console.error('Github login failed:', error);
     } finally {
       setLoading(false);
     }
@@ -176,6 +188,7 @@ const LoginPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <motion.button
                 variants={fadeIn}
+                onClick = {handleGithubLogin}
                 type="button"
                 className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-gray-200 rounded-full hover:border-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={loading || authLoading}
