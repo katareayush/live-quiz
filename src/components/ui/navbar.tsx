@@ -49,7 +49,7 @@ export default function Navbar() {
 
             {/* Login Button */}
             <div className="hidden lg:block">
-                <button onClick={() => router.push('/login')} className="bg-pink-400 text-white px-6 py-2 rounded-3xl">
+                <button onClick={() => router.push('/login')} className="bg-pink-400 text-white px-6 py-2 rounded-3xl hover:bg-pink-500 transition-colors">
                     Login
                 </button>
             </div>
