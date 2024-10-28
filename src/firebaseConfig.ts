@@ -1,8 +1,7 @@
-// Import the functions you need from the Firebase SDK
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
 
-// Define the Firebase config interface
 interface FirebaseConfig {
   apiKey: string;
   authDomain: string;
@@ -12,7 +11,6 @@ interface FirebaseConfig {
   appId: string;
 }
 
-// Your Firebase configuration using environment variables
 const firebaseConfig: FirebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
@@ -22,9 +20,33 @@ const firebaseConfig: FirebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
 
-// Initialize Firebase
-const firebaseApp = initializeApp(firebaseConfig);
 
-// Export Firebase auth
-export const auth = getAuth(firebaseApp);
-export default firebaseApp;
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApps()[0];
+}
+
+auth = getAuth(app);
+db = getFirestore(app);
+
+export { app, auth, db };
+
+const verifyFirebaseConfig = () => {
+  for (const [key, value] of Object.entries(firebaseConfig)) {
+    if (!value) {
+      throw new Error(`Firebase configuration error: ${key} is not defined`);
+    }
+  }
+};
+
+// Run verification in development
+if (process.env.NODE_ENV === 'development') {
+  verifyFirebaseConfig();
+}
+
+export default app;

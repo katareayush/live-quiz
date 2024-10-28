@@ -14,6 +14,7 @@ import {
   Trophy
 } from 'lucide-react'
 
+
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0 }
@@ -224,6 +225,7 @@ export default function HomePage() {
       <FeaturesSection />
       <DemoSection />
       <CTASection />
+      
     </main>
   )
 }
