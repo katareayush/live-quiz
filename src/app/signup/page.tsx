@@ -89,7 +89,7 @@ const SignupPage = () => {
       await signupWithGithub();
       router.push('/dashboard');
     } catch (error) {
-      console.error('Google signup failed:', error);
+      console.error('Github signup failed:', error);
     } finally {
       setLoading(false);
     }
