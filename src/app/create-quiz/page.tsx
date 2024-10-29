@@ -4,10 +4,17 @@ import { motion } from 'framer-motion';
 import { Plus, Trash2, Save, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Question } from '../../types/quiz';
+import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { useAuth } from '../../hooks/useAuth';
+import { db } from '../../firebaseConfig';
+import { useRouter } from 'next/navigation';
 
 const CreateQuizPage: React.FC = () => {
+  const router = useRouter();
   const [quizTitle, setQuizTitle] = useState<string>('');
   const [quizDescription, setQuizDescription] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([
     {
       id: '1',
@@ -52,15 +59,70 @@ const CreateQuizPage: React.FC = () => {
     }));
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault();
-    // Here you would implement the Firestore creation logic
-    console.log({
-      title: quizTitle,
-      description: quizDescription,
-      questions,
-      createdAt: new Date()
+  const validateQuiz = () => {
+    // Check if title and description are not empty
+    if (!quizTitle.trim() || !quizDescription.trim()) {
+      throw new Error('Quiz title and description are required');
+    }
+
+    // Validate each question
+    questions.forEach((question, index) => {
+      if (!question.questionText.trim()) {
+        throw new Error(`Question ${index + 1} text is required`);
+      }
+
+      // Check if all options are filled
+      const emptyOptions = question.options.some(opt => !opt.trim());
+      if (emptyOptions) {
+        throw new Error(`All options for question ${index + 1} must be filled`);
+      }
+
+      // Check if correct answer is selected
+      if (!question.correctAnswer) {
+        throw new Error(`Please select a correct answer for question ${index + 1}`);
+      }
     });
+  };
+
+  const saveQuiz = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!user) {
+      alert('You must be logged in to create a quiz');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      // Validate the quiz data
+      validateQuiz();
+
+      // Prepare the quiz data
+      const quizData = {
+        title: quizTitle.trim(),
+        description: quizDescription.trim(),
+        questions: questions.map(({ id, ...rest }) => rest), // Remove client-side IDs
+        createdBy: user.uid,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      };
+
+      // Save to Firestore
+      const quizCollectionRef = collection(db, "quizzes");
+      const docRef = await addDoc(quizCollectionRef, quizData);
+      
+      router.push(`/quiz/${docRef.id}`); // Redirect to the new quiz page
+    } catch (error) {
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        console.error("Error saving quiz:", error);
+        alert("Failed to save quiz. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -84,7 +146,7 @@ const CreateQuizPage: React.FC = () => {
         >
           <h1 className="text-3xl font-bold text-gray-800 mb-6">Create New Quiz</h1>
           
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={saveQuiz} className="space-y-8">
             {/* Quiz Details */}
             <div className="space-y-4">
               <div>
@@ -193,9 +255,12 @@ const CreateQuizPage: React.FC = () => {
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="bg-pink-600 text-white px-8 py-3 rounded-full text-lg flex items-center gap-2 hover:bg-pink-700 transition-colors"
+                disabled={isSubmitting}
+                className={`bg-pink-600 text-white px-8 py-3 rounded-full text-lg flex items-center gap-2 transition-colors ${
+                  isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-pink-700'
+                }`}
               >
-                Save Quiz <Save className="w-5 h-5" />
+                {isSubmitting ? 'Saving...' : 'Save Quiz'} <Save className="w-5 h-5" />
               </button>
             </div>
           </form>

@@ -3,14 +3,18 @@ import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  Plus, 
-  LogOut, 
-  Layout, 
-  User, 
+import { useEffect, useState } from 'react';
+import { getFirestore, collection, getDocs } from 'firebase/firestore';
+import app from '@/firebaseConfig';
+import { Quiz, Question } from '@/types/quiz';
+import {
+  Plus,
+  LogOut,
+  Layout,
+  User,
   FileQuestion,
   Users,
-  BarChart 
+  BarChart
 } from 'lucide-react';
 
 interface DashboardStat {
@@ -23,6 +27,7 @@ interface DashboardStat {
 const DashboardPage = () => {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
 
   const stats: DashboardStat[] = [
     { label: 'Total Quizzes', value: '12', icon: FileQuestion, color: 'bg-pink-100 text-pink-600' },
@@ -38,6 +43,46 @@ const DashboardPage = () => {
       console.error("Logout failed:", error);
     }
   };
+
+  useEffect(() => {
+    const fetchQuizzes = async () => {
+      try {
+        const db = getFirestore(app);
+        const quizzesCollection = collection(db, 'quizzes');
+        const querySnapshot = await getDocs(quizzesCollection);
+
+        const quizzesData: Quiz[] = await Promise.all(
+          querySnapshot.docs.map(async (quizDoc) => {
+            const quizData = quizDoc.data();
+
+            // Fetch questions for each quiz
+            const questionsCollection = collection(quizDoc.ref, 'questions');
+            const questionsSnapshot = await getDocs(questionsCollection);
+
+            const questions: Question[] = questionsSnapshot.docs.map((questionDoc) => ({
+              id: questionDoc.id,
+              ...questionDoc.data(),
+            })) as Question[];
+
+            return {
+              id: quizDoc.id,
+              title: quizData.title,
+              description: quizData.description,
+              createdAt: quizData.createdAt.toDate(),
+              questions,
+            };
+          })
+        );
+
+        setQuizzes(quizzesData);
+      } catch (error) {
+        console.error("Error fetching quizzes:", error);
+      }
+    };
+
+    fetchQuizzes();
+  }, []);
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -105,28 +150,36 @@ const DashboardPage = () => {
           <h2 className="text-xl font-semibold mb-4">Recent Quizzes</h2>
           <div className="space-y-4">
             {/* Quiz List */}
-            {[1, 2, 3].map((quiz) => (
-              <div
-                key={quiz}
-                className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg transition-colors"
-              >
-                <div>
-                  <h3 className="font-medium">Quiz Title {quiz}</h3>
-                  <p className="text-sm text-gray-500">Created on Oct {quiz + 10}, 2024</p>
+            {quizzes.length > 0 ? (
+              quizzes.map((quiz) => (
+                <div
+                  key={quiz.id}
+                  className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <div>
+                    <h3 className="font-medium">{quiz.title}</h3>
+                    <p className="text-sm text-gray-500">
+                      Created on {quiz.createdAt.toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-500">
+                      {quiz.questions.length} questions
+                    </span>
+                    <Link
+                      href={`/quiz/${quiz.id}`}
+                      className="px-4 py-2 text-pink-600 hover:bg-pink-50 rounded-lg transition-colors"
+                    >
+                      View Details
+                    </Link>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-500">23 participants</span>
-                  <Link
-                    href={`/quiz/${quiz}`}
-                    className="px-4 py-2 text-pink-600 hover:bg-pink-50 rounded-lg transition-colors"
-                  >
-                    View Details
-                  </Link>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-gray-500">No quizzes available.</p>
+            )}
           </div>
-          
+
           {/* View All Link */}
           <div className="mt-6 text-center">
             <Link
@@ -137,6 +190,7 @@ const DashboardPage = () => {
             </Link>
           </div>
         </div>
+
       </main>
     </div>
   );
