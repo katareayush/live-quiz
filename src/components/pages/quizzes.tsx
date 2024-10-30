@@ -116,7 +116,7 @@ const QuizzesPage = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">My Quizzes</h1>
         <Link
-          href="/quiz/create"
+          href="/create-quiz"
           className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition-colors"
         >
           Create New Quiz
@@ -165,7 +165,7 @@ const QuizzesPage = () => {
           <div className="text-center py-8 bg-white rounded-lg shadow-md">
             <p className="text-gray-600 mb-4">No quizzes found</p>
             <Link
-              href="/quiz/create"
+              href="/create-quiz"
               className="inline-block bg-pink-600 text-white px-6 py-2 rounded-lg hover:bg-pink-700 transition-colors"
             >
               Create Your First Quiz
