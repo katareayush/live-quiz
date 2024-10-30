@@ -4,9 +4,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getFirestore, collection, getDocs } from 'firebase/firestore';
-import app from '@/firebaseConfig';
-import { Quiz, Question } from '@/types/quiz';
+import { 
+  collection, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy,
+  limit, 
+  Timestamp 
+} from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 import {
   Plus,
   LogOut,
@@ -16,6 +23,15 @@ import {
   Users,
   BarChart
 } from 'lucide-react';
+
+interface QuizMetadata {
+  id: string;
+  title: string;
+  description: string;
+  createdAt: Date;
+  createdBy: string;
+  userId: string;
+}
 
 interface DashboardStat {
   label: string;
@@ -27,7 +43,9 @@ interface DashboardStat {
 const DashboardPage = () => {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [quizzes, setQuizzes] = useState<QuizMetadata[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   const stats: DashboardStat[] = [
     { label: 'Total Quizzes', value: '12', icon: FileQuestion, color: 'bg-pink-100 text-pink-600' },
@@ -46,43 +64,68 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const fetchQuizzes = async () => {
+      if (!user?.uid) {
+        setLoading(false);
+        setError("Please log in to view your quizzes.");
+        return;
+      }
+
       try {
-        const db = getFirestore(app);
-        const quizzesCollection = collection(db, 'quizzes');
-        const querySnapshot = await getDocs(quizzesCollection);
+        console.log('Fetching quizzes for user:', user.uid);
 
-        const quizzesData: Quiz[] = await Promise.all(
-          querySnapshot.docs.map(async (quizDoc) => {
-            const quizData = quizDoc.data();
-
-            // Fetch questions for each quiz
-            const questionsCollection = collection(quizDoc.ref, 'questions');
-            const questionsSnapshot = await getDocs(questionsCollection);
-
-            const questions: Question[] = questionsSnapshot.docs.map((questionDoc) => ({
-              id: questionDoc.id,
-              ...questionDoc.data(),
-            })) as Question[];
-
-            return {
-              id: quizDoc.id,
-              title: quizData.title,
-              description: quizData.description,
-              createdAt: quizData.createdAt.toDate(),
-              questions,
-            };
-          })
+        const quizzesRef = collection(db, 'quizzes');
+        const quizQuery = query(
+          quizzesRef,
+          where('userId', '==', user.uid),  // Must be first
+          orderBy('createdAt', 'desc'),
+          limit(20)  // Match security rules limit
         );
 
+        const querySnapshot = await getDocs(quizQuery);
+        
+        console.log('Number of quizzes found:', querySnapshot.size);
+
+        const quizzesData = querySnapshot.docs.map((doc) => {
+          const data = doc.data();
+          console.log('Quiz data:', data);
+
+          return {
+            id: doc.id,
+            title: data.title || 'Untitled Quiz',
+            description: data.description || 'No description',
+            createdAt: data.createdAt instanceof Timestamp 
+              ? data.createdAt.toDate() 
+              : new Date(),
+            createdBy: data.createdBy || user.uid,
+            userId: data.userId || user.uid
+          } as QuizMetadata;
+        });
+
         setQuizzes(quizzesData);
+        setError(null);
       } catch (error) {
-        console.error("Error fetching quizzes:", error);
+        console.error('Error fetching quizzes:', error);
+        setError(
+          error instanceof Error 
+            ? `Error loading quizzes: ${error.message}` 
+            : "An unexpected error occurred while loading quizzes."
+        );
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchQuizzes();
-  }, []);
+    if (user?.uid) {
+      fetchQuizzes();
+    }
+  }, [user?.uid]);
 
+  // Update stats based on actual quiz data
+  useEffect(() => {
+    if (quizzes.length > 0) {
+      stats[0].value = quizzes.length.toString();
+    }
+  }, [quizzes]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -149,8 +192,16 @@ const DashboardPage = () => {
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold mb-4">Recent Quizzes</h2>
           <div className="space-y-4">
-            {/* Quiz List */}
-            {quizzes.length > 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div>
+                <span className="ml-2 text-gray-600">Loading quizzes...</span>
+              </div>
+            ) : error ? (
+              <div className="bg-red-50 text-red-600 p-4 rounded-lg">
+                {error}
+              </div>
+            ) : quizzes.length > 0 ? (
               quizzes.map((quiz) => (
                 <div
                   key={quiz.id}
@@ -163,9 +214,6 @@ const DashboardPage = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-sm text-gray-500">
-                      {quiz.questions.length} questions
-                    </span>
                     <Link
                       href={`/quiz/${quiz.id}`}
                       className="px-4 py-2 text-pink-600 hover:bg-pink-50 rounded-lg transition-colors"
@@ -190,7 +238,6 @@ const DashboardPage = () => {
             </Link>
           </div>
         </div>
-
       </main>
     </div>
   );

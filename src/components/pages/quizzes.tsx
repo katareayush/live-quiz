@@ -12,13 +12,13 @@ import {
 import { db } from '../../firebaseConfig';
 import { useAuth } from '@/hooks/useAuth';
 
-// Define the QuizMetadata interface
 export interface QuizMetadata {
   id: string;
   title: string;
   description: string;
   createdAt: Date;
   createdBy: string;
+  userId: string;
 }
 
 const QuizzesPage = () => {
@@ -36,6 +36,8 @@ const QuizzesPage = () => {
       }
 
       try {
+        console.log('Fetching quizzes for user:', user.uid); // Debug log
+
         const quizzesRef = collection(db, 'quizzes');
         const quizQuery = query(
           quizzesRef,
@@ -44,16 +46,22 @@ const QuizzesPage = () => {
         );
 
         const querySnapshot = await getDocs(quizQuery);
+        
+        console.log('Number of quizzes found:', querySnapshot.size); // Debug log
+
         const quizzesData = querySnapshot.docs.map((doc) => {
           const data = doc.data();
+          console.log('Quiz data:', data); // Debug log for each quiz
+
           return {
             id: doc.id,
             title: data.title || 'Untitled Quiz',
             description: data.description || 'No description',
             createdAt: data.createdAt instanceof Timestamp 
               ? data.createdAt.toDate() 
-              : new Date(), // Fallback to current date if Timestamp is invalid
+              : new Date(),
             createdBy: data.createdBy || user.uid,
+            userId: data.userId || user.uid // Ensure userId is included
           } as QuizMetadata;
         });
 
@@ -71,8 +79,26 @@ const QuizzesPage = () => {
       }
     };
 
-    fetchQuizzes();
-  }, [user]);
+    if (user?.uid) {
+      fetchQuizzes();
+    }
+  }, [user?.uid]); // Changed dependency to user?.uid
+
+  // Debug render to check user state
+  useEffect(() => {
+    console.log('Current user:', user);
+    console.log('Current quizzes:', quizzes);
+  }, [user, quizzes]);
+
+  if (!user) {
+    return (
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-600 px-4 py-3 rounded-lg">
+          Please log in to view your quizzes
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

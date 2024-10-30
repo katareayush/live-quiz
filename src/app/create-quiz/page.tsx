@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Plus, Trash2, Save, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Question } from '../../types/quiz';
-import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { collection, addDoc, Timestamp , serverTimestamp } from "firebase/firestore";
 import { useAuth } from '../../hooks/useAuth';
 import { db } from '../../firebaseConfig';
 import { useRouter } from 'next/navigation';
@@ -60,24 +60,24 @@ const CreateQuizPage: React.FC = () => {
   };
 
   const validateQuiz = () => {
-    // Check if title and description are not empty
+    if (!user) {
+      throw new Error('You must be logged in to create a quiz');
+    }
+
     if (!quizTitle.trim() || !quizDescription.trim()) {
       throw new Error('Quiz title and description are required');
     }
 
-    // Validate each question
     questions.forEach((question, index) => {
       if (!question.questionText.trim()) {
         throw new Error(`Question ${index + 1} text is required`);
       }
 
-      // Check if all options are filled
       const emptyOptions = question.options.some(opt => !opt.trim());
       if (emptyOptions) {
         throw new Error(`All options for question ${index + 1} must be filled`);
       }
 
-      // Check if correct answer is selected
       if (!question.correctAnswer) {
         throw new Error(`Please select a correct answer for question ${index + 1}`);
       }
@@ -94,25 +94,32 @@ const CreateQuizPage: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      
-      // Validate the quiz data
       validateQuiz();
 
-      // Prepare the quiz data
+      // Updated quiz data structure
       const quizData = {
         title: quizTitle.trim(),
         description: quizDescription.trim(),
-        questions: questions.map(({ id, ...rest }) => rest), // Remove client-side IDs
+        questions: questions.map(({ id, ...rest }) => rest),
         createdBy: user.uid,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
+        userId: user.uid, // Explicitly set userId for querying
+        createdAt: serverTimestamp(), // Use serverTimestamp for consistency
+        updatedAt: serverTimestamp(),
+        status: 'active', // Add status field for potential future use
+        totalQuestions: questions.length,
+        metadata: {
+          lastModifiedBy: user.uid,
+          version: 1,
+        }
       };
 
       // Save to Firestore
       const quizCollectionRef = collection(db, "quizzes");
       const docRef = await addDoc(quizCollectionRef, quizData);
       
-      router.push(`/quiz/${docRef.id}`); // Redirect to the new quiz page
+      console.log('Quiz created successfully with ID:', docRef.id);
+      
+      router.push(`/quiz/${docRef.id}`);
     } catch (error) {
       if (error instanceof Error) {
         alert(error.message);
