@@ -19,6 +19,7 @@ export interface QuizMetadata {
   createdAt: Date;
   createdBy: string;
   userId: string;
+  roomCode: string;  // Added roomCode to the interface
 }
 
 const QuizzesPage = () => {
@@ -36,7 +37,7 @@ const QuizzesPage = () => {
       }
 
       try {
-        console.log('Fetching quizzes for user:', user.uid); // Debug log
+        console.log('Fetching quizzes for user:', user.uid);
 
         const quizzesRef = collection(db, 'quizzes');
         const quizQuery = query(
@@ -47,11 +48,11 @@ const QuizzesPage = () => {
 
         const querySnapshot = await getDocs(quizQuery);
         
-        console.log('Number of quizzes found:', querySnapshot.size); // Debug log
+        console.log('Number of quizzes found:', querySnapshot.size);
 
         const quizzesData = querySnapshot.docs.map((doc) => {
           const data = doc.data();
-          console.log('Quiz data:', data); // Debug log for each quiz
+          console.log('Quiz data:', data);
 
           return {
             id: doc.id,
@@ -61,7 +62,8 @@ const QuizzesPage = () => {
               ? data.createdAt.toDate() 
               : new Date(),
             createdBy: data.createdBy || user.uid,
-            userId: data.userId || user.uid // Ensure userId is included
+            userId: data.userId || user.uid,
+            roomCode: data.roomCode || 'No room code'
           } as QuizMetadata;
         });
 
@@ -82,13 +84,7 @@ const QuizzesPage = () => {
     if (user?.uid) {
       fetchQuizzes();
     }
-  }, [user?.uid]); // Changed dependency to user?.uid
-
-  // Debug render to check user state
-  useEffect(() => {
-    console.log('Current user:', user);
-    console.log('Current quizzes:', quizzes);
-  }, [user, quizzes]);
+  }, [user?.uid]);
 
   if (!user) {
     return (
@@ -147,16 +143,22 @@ const QuizzesPage = () => {
                 <div className="flex space-x-3">
                   <Link
                     href={`/quiz/${quiz.id}`}
-                    className="text-pink-600 hover:text-pink-700 font-medium"
+                    className="text-pink-600 hover:text-pink-700 font-medium text-2xl"
                   >
                     View
                   </Link>
                   <Link
                     href={`/quiz/${quiz.id}/edit`}
-                    className="text-blue-600 hover:text-blue-700 font-medium"
+                    className="text-blue-600 hover:text-blue-700 font-medium text-2xl"
                   >
                     Edit
                   </Link>
+                </div>
+              </div>
+              <div className="flex justify-end items-center mt-4">
+                <div className=" px-4 py-2 rounded-lg">
+                  <span className=" font-medium">Room Code: </span>
+                  <span className="bg-gray-200 text-gray-200 font-bold rounded-3xl p-2 hover:bg-white hover:text-pink-600 select-none">{quiz.roomCode}</span>
                 </div>
               </div>
             </div>

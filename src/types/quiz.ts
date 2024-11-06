@@ -11,4 +11,5 @@ export interface Question {
     createdAt: Date;
     questions: Question[];
     id: string;
+    roomCode: string;
   }
