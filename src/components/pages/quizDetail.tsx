@@ -75,6 +75,7 @@ export default function QuizDetailPage() {
             description: quizData.description || '',
             createdAt: quizData.createdAt?.toDate() || new Date(),
             questions: quizData.questions || [],
+            roomCode: quizData.roomCode || 'NA'
           });
         } else {
           console.error('Quiz document does not exist');

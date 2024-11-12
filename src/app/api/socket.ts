@@ -1,7 +1,6 @@
-// server/socket.ts
 import { Server } from 'socket.io';
 import { createServer } from 'http';
-import express from 'express';
+const express = require('express');
 
 interface Question {
   id: string;
@@ -89,26 +88,34 @@ io.on('connection', (socket) => {
       return;
     }
 
-    room.participants.push({
+    // Add the new participant to the room
+    const newParticipant = {
       socketId: socket.id,
       username,
       score: 0
-    });
+    };
+    room.participants.push(newParticipant);
 
     socket.join(roomCode);
 
-    // Send quiz info and current state to new participant
+    // Send quiz info and current state to the new participant
     socket.emit('quizJoined', {
       title: room.quiz.title,
       description: room.quiz.description,
       currentQuestion: room.currentQuestionIndex,
       totalQuestions: room.quiz.questions.length,
-      participants: room.participants
+      participants: room.participants.map(p => ({
+        username: p.username,
+        score: p.score
+      }))
     });
 
-    // Notify others
+    // Notify other participants that a new user has joined
     io.to(roomCode).emit('participantJoined', {
-      participants: room.participants,
+      participants: room.participants.map(p => ({
+        username: p.username,
+        score: p.score
+      })),
       message: `${username} joined the quiz`
     });
   });
@@ -151,7 +158,7 @@ io.on('connection', (socket) => {
     room.currentQuestionIndex++;
 
     if (room.currentQuestionIndex < room.quiz.questions.length) {
-      // Send next question
+      // Send next question to all participants in the room
       io.to(roomCode).emit('questionStart', {
         question: room.quiz.questions[room.currentQuestionIndex],
         questionNumber: room.currentQuestionIndex + 1,
@@ -159,8 +166,9 @@ io.on('connection', (socket) => {
       });
     } else {
       // End quiz
+      const finalScores = room.participants.sort((a, b) => b.score - a.score);
       io.to(roomCode).emit('quizEnd', {
-        finalScores: room.participants.sort((a, b) => b.score - a.score),
+        finalScores,
         quiz: room.quiz
       });
       room.isActive = false;

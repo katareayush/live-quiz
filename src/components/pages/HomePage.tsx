@@ -1,9 +1,12 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useState , } from 'react'
 import Link from 'next/link'
 import {useQuizSocket} from '@/hooks/useQuizSocket'
+import { io } from 'socket.io-client';
+import { useNavigate } from 'react-router-dom';
+
 import { 
   Play, 
   Users, 
@@ -14,6 +17,7 @@ import {
   Zap,
   Trophy
 } from 'lucide-react'
+import WithRouter from '@/utils/WithRouter'
 
 
 const fadeIn = {
@@ -31,22 +35,32 @@ const staggerContainer = {
   }
 }
 
+const socket = io('http://localhost:3001');
+
 interface JoinQuizProps {
   roomCode: string;
 }
 
-const JoinQuiz: React.FC<JoinQuizProps> = ({ roomCode }) => {
-  const { joinQuiz, error } = useQuizSocket(false)
-  const [code, setCode] = useState(roomCode)
-  const [username, setUsername] = useState('')
 
-  const handleJoin = () => {
-    if (username && code) {
-      joinQuiz(code, username)
-    } else {
-      console.log("Please enter a username and session code.")
-    }
-  }
+function JoinQuizForm() {
+  const navigate = useNavigate();
+  const [roomCode, setRoomCode] = useState('');
+  const [code, setCode] = useState(roomCode)
+  const [username, setUsername] = useState('');
+
+  const handleJoinQuiz = () => {
+    socket.emit('joinQuiz', { roomCode, username });
+
+    socket.on('quizJoined', (quizData) => {
+      // Navigate to the specific quiz room page
+      navigate(`/quiz/${roomCode}`, { state: quizData });
+    });
+
+    socket.on('error', (error) => {
+      // Handle error, e.g., display an error message
+      console.error(error.message);
+    });
+  };
 
   return (
     <motion.section 
@@ -89,7 +103,7 @@ const JoinQuiz: React.FC<JoinQuizProps> = ({ roomCode }) => {
             className="px-6 py-3 rounded-full text-lg border-2 border-pink-300 focus:border-pink-500 outline-none w-full md:w-64"
           />
           <button 
-            onClick={handleJoin}
+            onClick={handleJoinQuiz}
             className="bg-pink-600 text-white px-8 py-3 rounded-full text-lg flex items-center gap-2 hover:bg-pink-700 transition-colors"
           >
             Join Session <Play className="w-5 h-5" />
@@ -241,7 +255,9 @@ const CTASection = () => {
 export default function HomePage() {
   return (
     <main className="overflow-hidden">
-      <JoinQuiz roomCode="defaultRoomCode" />
+      <WithRouter>
+        <JoinQuizForm/>
+      </WithRouter>
       <FeaturesSection />
       <DemoSection />
       <CTASection />
