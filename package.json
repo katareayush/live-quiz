@@ -1,12 +1,14 @@
 {
   "name": "live-quiz",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "start:api": "ts-node dist/api/socket.js"
   },
   "dependencies": {
     "@prisma/client": "^5.21.1",

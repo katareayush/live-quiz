@@ -1,8 +1,9 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import {useQuizSocket} from '@/hooks/useQuizSocket'
 import { 
   Play, 
   Users, 
@@ -30,8 +31,22 @@ const staggerContainer = {
   }
 }
 
-const HeroSection = () => {
-  const [code, setCode] = useState('')
+interface JoinQuizProps {
+  roomCode: string;
+}
+
+const JoinQuiz: React.FC<JoinQuizProps> = ({ roomCode }) => {
+  const { joinQuiz, error } = useQuizSocket(false)
+  const [code, setCode] = useState(roomCode)
+  const [username, setUsername] = useState('')
+
+  const handleJoin = () => {
+    if (username && code) {
+      joinQuiz(code, username)
+    } else {
+      console.log("Please enter a username and session code.")
+    }
+  }
 
   return (
     <motion.section 
@@ -54,11 +69,18 @@ const HeroSection = () => {
         >
           Create interactive quizzes, polls, and surveys that make learning fun and engagement measurable
         </motion.p>
-        
+
         <motion.div 
           variants={staggerContainer}
           className="flex flex-col md:flex-row gap-4 justify-center items-center mb-12"
         >
+          <input
+            type="text"
+            placeholder="Enter your username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="px-6 py-3 rounded-full text-lg border-2 border-pink-300 focus:border-pink-500 outline-none w-full md:w-64"
+          />
           <input
             type="text"
             placeholder="Enter session code"
@@ -66,7 +88,10 @@ const HeroSection = () => {
             onChange={(e) => setCode(e.target.value)}
             className="px-6 py-3 rounded-full text-lg border-2 border-pink-300 focus:border-pink-500 outline-none w-full md:w-64"
           />
-          <button className="bg-pink-600 text-white px-8 py-3 rounded-full text-lg flex items-center gap-2 hover:bg-pink-700 transition-colors">
+          <button 
+            onClick={handleJoin}
+            className="bg-pink-600 text-white px-8 py-3 rounded-full text-lg flex items-center gap-2 hover:bg-pink-700 transition-colors"
+          >
             Join Session <Play className="w-5 h-5" />
           </button>
           <Link href="/create" className="bg-pink-400 text-white px-8 py-3 rounded-full text-lg flex items-center gap-2 hover:bg-pink-500 transition-colors">
@@ -79,12 +104,7 @@ const HeroSection = () => {
           variants={staggerContainer}
           className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto"
         >
-          {[
-            { number: '1M+', label: 'Active Users', icon: Users },
-            { number: '500K+', label: 'Quizzes Created', icon: Brain },
-            { number: '10M+', label: 'Questions Answered', icon: CheckCircle },
-            { number: '98%', label: 'Satisfaction Rate', icon: Trophy }
-          ].map((stat, index) => (
+          {[{ number: '1M+', label: 'Active Users', icon: Users }, { number: '500K+', label: 'Quizzes Created', icon: Brain }, { number: '10M+', label: 'Questions Answered', icon: CheckCircle }, { number: '98%', label: 'Satisfaction Rate', icon: Trophy }].map((stat, index) => (
             <motion.div
               key={index}
               variants={fadeIn}
@@ -221,7 +241,7 @@ const CTASection = () => {
 export default function HomePage() {
   return (
     <main className="overflow-hidden">
-      <HeroSection />
+      <JoinQuiz roomCode="defaultRoomCode" />
       <FeaturesSection />
       <DemoSection />
       <CTASection />

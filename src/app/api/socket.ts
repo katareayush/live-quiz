@@ -1,40 +1,188 @@
-import express from 'express';
-import http from 'http';
+// server/socket.ts
 import { Server } from 'socket.io';
-import next from 'next';
+import { createServer } from 'http';
+import express from 'express';
 
-const dev = process.env.NODE_ENV !== 'production';
-const app = next({ dev });
-const handle = app.getRequestHandler();
+interface Question {
+  id: string;
+  questionText: string;
+  options: string[];
+  correctAnswer: string;
+}
 
-const port = 3000;
+interface Quiz {
+  title: string;
+  description: string;
+  createdAt: Date;
+  questions: Question[];
+  id: string;
+  roomCode: string;
+}
 
-app.prepare().then(() => {
-    const expressApp = express();
-    const server = http.createServer(expressApp);
-    const io = new Server(server);
+interface QuizRoom {
+  quiz: Quiz;
+  participants: {
+    socketId: string;
+    username: string;
+    score: number;
+  }[];
+  currentQuestionIndex: number;
+  isActive: boolean;
+  startTime?: number;
+}
 
-    io.on("connection", (socket) => {
-        console.log("User connected:", socket.id);
+const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST"]
+  }
+});
 
-        // Broadcast new questions from the host
-        socket.on("newQuestion", (question) => {
-            io.emit("updateQuestion", question);
-        });
+const quizRooms = new Map<string, QuizRoom>();
 
-        // Receive and broadcast answers
-        socket.on("submitAnswer", (answerData) => {
-            io.emit("receiveAnswer", answerData);
-        });
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
 
-        socket.on("disconnect", () => {
-            console.log("User disconnected:", socket.id);
-        });
+  // Host initializes quiz room
+  socket.on('initializeQuiz', (quiz: Quiz) => {
+    const room: QuizRoom = {
+      quiz,
+      participants: [],
+      currentQuestionIndex: -1,
+      isActive: true
+    };
+    quizRooms.set(quiz.roomCode, room);
+    socket.join(quiz.roomCode);
+    
+    console.log(`Quiz room ${quiz.roomCode} created for quiz: ${quiz.title}`);
+  });
+
+  // Start quiz
+  socket.on('startQuiz', ({ roomCode }) => {
+    const room = quizRooms.get(roomCode);
+    if (!room) return;
+
+    room.currentQuestionIndex = 0;
+    room.startTime = Date.now();
+
+    // Send first question to all participants
+    io.to(roomCode).emit('questionStart', {
+      question: room.quiz.questions[0],
+      questionNumber: 1,
+      totalQuestions: room.quiz.questions.length
+    });
+  });
+
+  // Participant joins quiz
+  socket.on('joinQuiz', ({ roomCode, username }) => {
+    const room = quizRooms.get(roomCode);
+    if (!room) {
+      socket.emit('error', { message: 'Quiz room not found' });
+      return;
+    }
+
+    // Check if username is already taken in this room
+    if (room.participants.some(p => p.username === username)) {
+      socket.emit('error', { message: 'Username already taken' });
+      return;
+    }
+
+    room.participants.push({
+      socketId: socket.id,
+      username,
+      score: 0
     });
 
-    expressApp.all('*', (req, res) => handle(req, res));
+    socket.join(roomCode);
 
-    server.listen(port, () => {
-        console.log(`> Server running on http://localhost:${port}`);
+    // Send quiz info and current state to new participant
+    socket.emit('quizJoined', {
+      title: room.quiz.title,
+      description: room.quiz.description,
+      currentQuestion: room.currentQuestionIndex,
+      totalQuestions: room.quiz.questions.length,
+      participants: room.participants
     });
+
+    // Notify others
+    io.to(roomCode).emit('participantJoined', {
+      participants: room.participants,
+      message: `${username} joined the quiz`
+    });
+  });
+
+  // Handle answer submission
+  socket.on('submitAnswer', ({ roomCode, answer }) => {
+    const room = quizRooms.get(roomCode);
+    if (!room || room.currentQuestionIndex === -1) return;
+
+    const participant = room.participants.find(p => p.socketId === socket.id);
+    if (!participant) return;
+
+    const currentQuestion = room.quiz.questions[room.currentQuestionIndex];
+    const isCorrect = answer === currentQuestion.correctAnswer;
+
+    if (isCorrect) {
+      participant.score += 10;
+    }
+
+    // Send result to the participant who answered
+    socket.emit('answerFeedback', {
+      isCorrect,
+      correctAnswer: currentQuestion.correctAnswer
+    });
+
+    // Update all participants with new scores
+    io.to(roomCode).emit('scoreUpdate', {
+      participants: room.participants.map(p => ({
+        username: p.username,
+        score: p.score
+      }))
+    });
+  });
+
+  // Move to next question
+  socket.on('nextQuestion', ({ roomCode }) => {
+    const room = quizRooms.get(roomCode);
+    if (!room) return;
+
+    room.currentQuestionIndex++;
+
+    if (room.currentQuestionIndex < room.quiz.questions.length) {
+      // Send next question
+      io.to(roomCode).emit('questionStart', {
+        question: room.quiz.questions[room.currentQuestionIndex],
+        questionNumber: room.currentQuestionIndex + 1,
+        totalQuestions: room.quiz.questions.length
+      });
+    } else {
+      // End quiz
+      io.to(roomCode).emit('quizEnd', {
+        finalScores: room.participants.sort((a, b) => b.score - a.score),
+        quiz: room.quiz
+      });
+      room.isActive = false;
+    }
+  });
+
+  socket.on('disconnect', () => {
+    quizRooms.forEach((room, roomCode) => {
+      const index = room.participants.findIndex(p => p.socketId === socket.id);
+      if (index !== -1) {
+        const username = room.participants[index].username;
+        room.participants.splice(index, 1);
+        io.to(roomCode).emit('participantLeft', {
+          participants: room.participants,
+          message: `${username} has left the quiz`
+        });
+      }
+    });
+  });
+});
+
+const PORT = process.env.PORT || 3001;
+httpServer.listen(PORT, () => {
+  console.log(`Socket.IO server running on port ${PORT}`);
 });
