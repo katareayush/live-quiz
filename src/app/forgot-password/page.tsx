@@ -215,7 +215,7 @@ const ForgotPassword = () => {
           </motion.div>
 
           <motion.p variants={fadeIn} className="mt-8 text-center text-gray-700">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/signup" className="text-pink-600 hover:text-pink-700 font-medium">
               Sign up for free
             </Link>

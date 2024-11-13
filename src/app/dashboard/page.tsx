@@ -125,7 +125,7 @@ const DashboardPage = () => {
     if (quizzes.length > 0) {
       stats[0].value = quizzes.length.toString();
     }
-  }, [quizzes]);
+  }, [quizzes , stats]);
 
   return (
     <div className="min-h-screen bg-gray-50">
